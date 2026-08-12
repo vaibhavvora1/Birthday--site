@@ -14,6 +14,17 @@ export default function BestFriendQuestionScene({ onComplete }) {
   const [step, setStep] = useState(1);
   const [friendshipChoice, setFriendshipChoice] = useState(null); // 'OF_COURSE' | 'ALWAYS' | null
 
+  const saveResponse = (response) => {
+    try {
+      localStorage.setItem('bestFriendResponse', JSON.stringify({
+        response,
+        submittedAt: new Date().toISOString(),
+      }));
+    } catch (e) {
+      console.warn('localStorage save failed:', e);
+    }
+  };
+
   const handleOfCourse = () => {
     soundFx.playCelebrationChime?.();
     confetti({
@@ -22,6 +33,7 @@ export default function BestFriendQuestionScene({ onComplete }) {
       origin: { y: 0.6 },
       colors: ['#f43f5e', '#fb7185', '#fda4af', '#f472b6', '#ffffff'],
     });
+    saveResponse('OF_COURSE');
     setFriendshipChoice('OF_COURSE');
   };
 
@@ -33,6 +45,7 @@ export default function BestFriendQuestionScene({ onComplete }) {
       origin: { y: 0.6 },
       colors: ['#f43f5e', '#fb7185', '#fda4af', '#f472b6', '#ffffff'],
     });
+    saveResponse('ALWAYS');
     setFriendshipChoice('ALWAYS');
   };
 

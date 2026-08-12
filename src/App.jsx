@@ -12,17 +12,33 @@ import PersonalityAccordionSection from './components/PersonalityAccordionSectio
 import LetterScene from './components/scenes/LetterScene';
 import BestFriendQuestionScene from './components/scenes/BestFriendQuestionScene';
 import BirthdayFinale from './components/scenes/BirthdayFinale';
+import ProposalDashboard from './components/ProposalDashboard';
 
 import MusicController from './components/MusicController';
 import CustomCursor from './components/CustomCursor';
 
 gsap.registerPlugin(ScrollTrigger);
 
+/** Returns true when the current URL path is exactly /proposal-dashboard */
+function isDashboardRoute() {
+  return window.location.pathname === '/proposal-dashboard';
+}
+
 export default function App() {
   const [scene, setScene] = useState(1);
+  const [showDashboard, setShowDashboard] = useState(isDashboardRoute);
 
-  // Initialize Lenis Smooth Scrolling
+  // React to browser back/forward navigation
   useEffect(() => {
+    const onPop = () => setShowDashboard(isDashboardRoute());
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  // Initialize Lenis Smooth Scrolling (only for the main app, not dashboard)
+  useEffect(() => {
+    if (showDashboard) return;
+
     const lenis = new Lenis({
       duration: 1.2,
       easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -34,40 +50,33 @@ export default function App() {
       lenis.raf(time);
       requestAnimationFrame(raf);
     }
-
     requestAnimationFrame(raf);
 
-    // Sync Lenis with GSAP ScrollTrigger
     lenis.on('scroll', ScrollTrigger.update);
-
-    gsap.ticker.add((time) => {
-      lenis.raf(time * 1000);
-    });
-
+    gsap.ticker.add((time) => { lenis.raf(time * 1000); });
     gsap.ticker.lagSmoothing(0);
 
-    return () => {
-      lenis.destroy();
-    };
-  }, []);
+    return () => { lenis.destroy(); };
+  }, [showDashboard]);
 
-  // Refresh GSAP ScrollTrigger on Scene change
+  // Refresh GSAP ScrollTrigger on scene change
   useEffect(() => {
+    if (showDashboard) return;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    setTimeout(() => {
-      ScrollTrigger.refresh();
-    }, 400);
-  }, [scene]);
+    setTimeout(() => { ScrollTrigger.refresh(); }, 400);
+  }, [scene, showDashboard]);
 
+  // ── Private Dashboard Route ────────────────────────────────────────────────
+  if (showDashboard) {
+    return <ProposalDashboard />;
+  }
+
+  // ── Main Birthday Website ──────────────────────────────────────────────────
   return (
     <div className="relative min-h-screen bg-[#fff5f8] text-slate-900 overflow-x-hidden selection:bg-rose-400 selection:text-white font-sans antialiased">
-      {/* Global Sound Controller */}
       <MusicController />
-
-      {/* Desktop Custom Cursor */}
       <CustomCursor />
 
-      {/* Scene Transitions */}
       <AnimatePresence mode="wait">
         <motion.div
           key={scene}
