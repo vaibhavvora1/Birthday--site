@@ -8,7 +8,7 @@ import { soundFx } from '../utils/audio';
 //    2. Update the filename below to match.
 //    Example: "/music/my-new-song.mp3"
 // ─────────────────────────────────────────────────────────────────────────────
-const BACKGROUND_MUSIC_SRC = '/music/arz-kiya-hai-humne-bhi-likha-kuch-tere-bare-main-aesthetic-status-lofi-love-beats-128-ytshorts.savetube.me.mp3';
+const BACKGROUND_MUSIC_SRC = '/music/Anuv Jain X Lost Stories - Arz Kiya Hai (Official Video)  Coke Studio Bharat - Coke Studio India.mp3';
 
 /**
  * MusicController Component (Bright Soft Pink Theme)
@@ -23,41 +23,70 @@ export default function MusicController() {
   const hasStartedRef = useRef(false);
 
   useEffect(() => {
-    // Create the audio element once and keep it for the lifetime of the app
+    const START_TIME = 60;
+    const END_TIME   = 108;
+
+    // Create the audio element once for the lifetime of the app
     const audio = new Audio(BACKGROUND_MUSIC_SRC);
-    audio.loop = true;
+    audio.loop   = false;
     audio.volume = 0.45;
     audioRef.current = audio;
 
-    // Attempt to auto-play on first user interaction
-    const handleFirstInteraction = () => {
+    // ── Once metadata is loaded, lock the start position ──────────────────
+    // Setting currentTime is only reliable AFTER the browser reads duration.
+    const handleMetadata = () => {
+      audio.currentTime = START_TIME;
+    };
+    audio.addEventListener('loadedmetadata', handleMetadata);
+
+    // ── Section loop: timeupdate guards the upper boundary ─────────────────
+    const handleTimeUpdate = () => {
+      if (audio.currentTime >= END_TIME) {
+        audio.currentTime = START_TIME;
+      }
+    };
+    audio.addEventListener('timeupdate', handleTimeUpdate);
+
+    // ── Backup: if the browser fires 'ended' before timeupdate catches it ──
+    const handleEnded = () => {
+      audio.currentTime = START_TIME;
+      audio.play().catch(() => {});
+    };
+    audio.addEventListener('ended', handleEnded);
+
+    // ── First user interaction → start music ───────────────────────────────
+    const startMusic = () => {
       if (hasStartedRef.current) return;
       hasStartedRef.current = true;
 
       soundFx.initContext();
 
+      // If metadata is already loaded seek now; otherwise loadedmetadata handles it
+      if (audio.readyState >= 1) {
+        audio.currentTime = START_TIME;
+      }
+
       audio.play()
         .then(() => setIsPlaying(true))
         .catch(() => {
-          // Autoplay blocked — user can manually press the button
+          // Browser blocked autoplay — user can press the music button manually
+          hasStartedRef.current = false; // allow retry
         });
-
-      window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
     };
 
-    window.addEventListener('click', handleFirstInteraction);
-    window.addEventListener('keydown', handleFirstInteraction);
-    window.addEventListener('touchstart', handleFirstInteraction);
+    window.addEventListener('click',      startMusic);
+    window.addEventListener('keydown',    startMusic);
+    window.addEventListener('touchstart', startMusic);
 
     return () => {
-      // Pause and release the audio when the component unmounts
+      audio.removeEventListener('loadedmetadata', handleMetadata);
+      audio.removeEventListener('timeupdate',     handleTimeUpdate);
+      audio.removeEventListener('ended',          handleEnded);
       audio.pause();
       audio.src = '';
-      window.removeEventListener('click', handleFirstInteraction);
-      window.removeEventListener('keydown', handleFirstInteraction);
-      window.removeEventListener('touchstart', handleFirstInteraction);
+      window.removeEventListener('click',      startMusic);
+      window.removeEventListener('keydown',    startMusic);
+      window.removeEventListener('touchstart', startMusic);
     };
   }, []);
 
@@ -72,6 +101,15 @@ export default function MusicController() {
     } else {
       soundFx.initContext();
       soundFx.isMuted = false;
+
+      // Mark as started so the window listener doesn't double-fire
+      hasStartedRef.current = true;
+
+      // Ensure position is within the allowed section
+      if (audio.currentTime < 60 || audio.currentTime >= 108) {
+        audio.currentTime = 60;
+      }
+
       audio.play()
         .then(() => setIsPlaying(true))
         .catch((err) => console.warn('Audio play failed:', err));
